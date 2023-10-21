@@ -1,0 +1,123 @@
+---
+title: "Data Preprocessing Notebook"
+output:
+  html_notebook: default
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+```{r}
+# Installing required packages
+library(quantmod)
+library(forecast)
+library(tseries)
+library(tinytex)
+```
+
+```{r}
+# Importing APPLE stock data
+getSymbols("AAPL")
+stock_data <- Cl(AAPL) # Closing prices
+stock_data
+```
+
+```{r}
+# Column Names
+colnames(stock_data)
+```
+
+```{r}
+# length of the data
+length(stock_data)
+```
+
+```{r}
+# Checking for missing values
+missing_indices <- which(is.na(stock_data))
+if(length(missing_indices) > 0) {
+  print(paste("Number of missing values:", length(missing_indices)))
+  # Here, we will use linear interpolation to fill in missing values
+  stock_data <- na.approx(stock_data)
+} else {
+  print("No missing values detected.")
+}
+```
+
+```{r}
+# Checking for NAs values
+sum(is.na(diff(log(stock_data))))
+```
+
+```{r}
+# Removing NAs values
+diff_log_data <- diff(log(stock_data))
+stock_data_clean <- na.omit(diff_log_data)
+stock_data_clean
+```
+
+```{r}
+# Coerce the time series data to a numeric vector
+stock_data_vector <- coredata(stock_data_clean$AAPL.Close)
+
+# Generate a boxplot and determine outliers
+boxplot(stock_data_vector, main="Boxplot of Stock Prices")
+outliers <- boxplot.stats(stock_data_vector)$out
+
+if(length(outliers) > 0) {
+  print(paste("Number of outliers detected:", length(outliers)))
+  
+  # Get the upper and lower bounds
+  upper_bound <- boxplot.stats(stock_data_vector)$stats[5]
+  lower_bound <- boxplot.stats(stock_data_vector)$stats[1]
+  
+  # Cap the outliers
+  stock_data_vector[stock_data_vector > upper_bound] <- upper_bound
+  stock_data_vector[stock_data_vector < lower_bound] <- lower_bound
+  
+  # Replace the original column with the capped data
+  stock_data_clean$AAPL.Close <- stock_data_vector
+
+} else {
+  print("No outliers detected.")
+}
+```
+"Number of outliers detected: 231"
+
+```{r}
+# Checking for stationarity
+adf.test(stock_data_clean, alternative="stationary", k=0)
+```
+The result of the Augmented Dickey-Fuller (ADF) test suggests that the diff_log_data_clean series is stationary. Let's break down the results:
+
+Dickey-Fuller Value: The value of -65.454 is the test statistic. The more negative this value is, the stronger the rejection of the hypothesis that there is a unit root.
+
+Lag Order: The lag order is 0, which means no lags of the difference series are included in the test regression. This was set by the k=0 parameter.
+
+p-value: The p-value is given as 0.01. This means that there's strong evidence against the null hypothesis of the series having a unit root (i.e., the series is non-stationary). Since the p-value is very small (and indeed, smaller than the printed p-value as the warning suggests), we can reject the null hypothesis, suggesting that the series is stationary after the differencing.
+
+Warning: The warning "p-value smaller than printed p-value" indicates that the p-value is even smaller than 0.01, which strengthens the evidence against the null hypothesis.
+
+In summary, the test suggests that your log-differenced series is stationary. This is a crucial step when we're preparing a time series for modeling, as many models, like ARIMA, require the input series to be stationary.
+
+
+```{r}
+# Saving the data
+saveRDS(diff_log_data_clean, file = "stock_data_clean.rds")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,5 +1,7 @@
 # Time Series Analysis on Stock Data
 
+![ARIMA Plot](<Images/ARIMA Plot.png>)
+
 # Introduction
 This project aims to analyze the historical stock data, identify its patterns, model its future values, and evaluate the model's accuracy. Time series analysis, particularly ARIMA modeling, was employed to achieve this.
 
@@ -9,14 +11,16 @@ The dataset used in this project represents the daily stock prices of a particul
 Key Features:
 Date: The day on which the stock data was recorded.
 Close Price: The price of the stock at the end of the trading day.
-Methods
+
+# Methods
 
 # Data Exploration and Cleaning:
 Visualized the stock data to identify patterns and anomalies.
 Checked for stationarity using the Augmented Dickey-Fuller Test.
 Transformed the data using log and differencing to ensure stationarity.
 Identified and managed outliers using box plots and capping methods.
-Modeling:
+
+# Modeling:
 
 Utilized the ARIMA (AutoRegressive Integrated Moving Average) model, chosen for its efficacy in modeling time series data without seasonal patterns.
 Employed the auto.arima() function to automatically select the best ARIMA parameters based on the AIC (Akaike Information Criterion) value.

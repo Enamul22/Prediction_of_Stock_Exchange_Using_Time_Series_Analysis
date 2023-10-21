@@ -1,0 +1,117 @@
+---
+title: "Model Evaluation Notebook"
+output:
+  html_notebook: default
+  pdf_document: default
+---
+
+```{r}
+# Installing required packages
+library(quantmod)
+library(forecast)
+library(tseries)
+library(ggplot2)
+library(tinytex)
+```
+
+```{r}
+# Importing data
+data <- readRDS("stock_data_clean.rds")
+```
+
+```{r}
+# Finding negative and nan values
+sum(data <= 0)
+```
+
+```{r}
+# Shift the entire series to make all values positive
+shift_value <- abs(min(data)) + 1
+stock_shifted = data + shift_value
+
+# Apply the log-plus-one transformation to the shifted data
+stock_log = log1p(stock_shifted)
+```
+
+```{r}
+# Log transform to stabilize variance
+stock_log_data <- log(stock_log)
+stock_diff <- diff(stock_log_data)
+```
+
+
+```{r}
+# Fit the ARIMA model. Here, I am using auto.arima to select the best parameters.
+fit <- auto.arima(stock_log, seasonal=FALSE)
+summary(fit)
+```
+Model Type:
+ARIMA(5,0,1) with non-zero mean: This suggests that the model chosen is an ARIMA model with order (p=5, d=0, q=1). This means:
+p=5: The autoregressive part of the model (AR) has 5 lags.
+d=0: No differencing was applied since d=0.
+q=1: The moving average part of the model (MA) has 1 lag.
+
+Coefficients and Standard Errors:
+ar1 to ar5: These are the coefficients for the AR terms from lag 1 to 5. Their values are -0.7412, -0.0450, -0.0168, 0.0339, and 0.0647, respectively.
+ma1: This is the coefficient for the MA term at lag 1, and its value is 0.7098.
+mean: The estimated mean of the series is 0.7877.
+The standard errors (s.e.) for each coefficient are given, which measure the accuracy of the coefficients. The smaller the standard error, the more accurate the estimate.
+
+Model Evaluation Metrics:
+sigma^2 = 8.392e-05: This is the variance of the residuals (errors).
+log likelihood = 13838.84: This value represents the log likelihood of the model. The higher this value, the better the model fits the data.
+AIC, AICc, and BIC: These are information criteria values used to compare the goodness of fit of different models. Lower values suggest a better model fit. Among these:
+AIC (Akaike Information Criterion): It penalizes the addition of extra parameters. A value of -27661.68 is given.
+AICc (Corrected Akaike Information Criterion): It's an adjusted version of AIC to account for sample size. It has a value of -27661.65.
+BIC (Bayesian Information Criterion): It also penalizes the model for the number of parameters but is stricter than AIC. Its value is -27610.89.
+
+Overall, the model seems to be performing reasonably well based on these metrics. The residuals (the differences between the predicted values and actual values) have low autocorrelation, which is a positive sign. The AIC, AICc, and BIC are useful when comparing this model to other potential models to determine which provides the best fit to the data.
+
+```{r}
+# Forecast next 30 days
+forecasted_values <- forecast(fit, h=30)
+plot(forecasted_values)
+```
+
+
+```{r}
+# Split data into training and test sets
+train_end <- length(stock_log) - 30
+train <- stock_log[1:train_end]
+test <- stock_log[(train_end+1):length(stock_log)]
+```
+
+```{r}
+fit_train <- auto.arima(train, seasonal=FALSE)
+forecasted_test <- forecast(fit_train, h=30)
+forecasted_test
+```
+
+```{r}
+# Assuming train data is already loaded and the ARIMA model is already fit
+
+fit_train <- auto.arima(train, seasonal=FALSE)
+forecasted_test <- forecast(fit_train, h=30)
+
+# Plot using ggplot2
+autoplot(forecasted_test) +
+  labs(title = "ARIMA Forecast", x = "Time", y = "Value") +
+  theme_minimal()
+```
+For each time step, the model provides a point forecast and associated confidence intervals. The wider the interval, the less certain the model is about its forecast for that point in time.
+We can use these intervals to assess the potential risk and variability in our forecasts. For example, if we're making business decisions based on these forecasts, knowing the range in which the actual values are likely to fall can help with risk management.
+
+The forecasts appear to be fairly stable (around the 0.787 to 0.788 range). There don't seem to be any drastic changes or trends in the forecasted values over these periods.
+The prediction intervals (both 80% and 95%) seem reasonably narrow, suggesting the model is somewhat confident about its forecasts. 
+
+```{r}
+# Convert both series to simple numeric vectors
+forecast_values <- as.numeric(forecasted_test$mean)
+test_values <- as.numeric(test)
+
+# Calculate RMSE
+rmse <- sqrt(mean((forecast_values - test_values)^2))
+print(paste("RMSE:", rmse))
+```
+
+The smaller the RMSE, the better the model's predictions are matching the actual observed values. An RMSE of 0 would mean the predictions are perfect. Here, an RMSE of 0.0062 indicates that, on average, our forecasted values are off by about 0.0062 units in the log-transformed scale from the actual values.
